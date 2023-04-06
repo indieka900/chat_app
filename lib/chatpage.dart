@@ -31,10 +31,13 @@ class _ChatPageState extends State<ChatPage> {
   void initState() {
     final myUserId = supabase.auth.currentUser!.id;
     const otherUserId = '94897175-940c-48a8-988f-2254b7dd4dab';
+
+    //_getMessagesWithIds(myUserId, otherUserId);
+
     _messagesStream = supabase
         .from('messages')
         .stream(primaryKey: ['id'])
-        .eq('profile_id', otherUserId)
+        //.eq('profile_id', otherUserId)
         .order('created_at')
         .map((maps) => maps
             .map((map) => Message.fromMap(
@@ -57,6 +60,28 @@ class _ChatPageState extends State<ChatPage> {
     });
   }
 
+  // Future<List<Message>> _getMessagesWithIds(
+  //     String userId1, String userId2) async {
+  //   final myUserId = supabase.auth.currentUser!.id;
+  //   final filterBuilder = supabase
+  //       .from('messages')
+  //       .select('*')
+  //       .or('profile_id.eq.$myUserId,profile_id.eq.$userId2')
+  //       //.and('profile_id.eq.$userId1,profile_id.eq.$userId2')
+  //       .order('created_at', ascending: false);
+
+  //   final response = await filterBuilder;
+  //   final data = response.data as List<dynamic>;
+  //   final messages = data
+  //       .map((map) => Message.fromMap(
+  //             map: map,
+  //             myUserId: myUserId,
+  //           ))
+  //       .toList();
+  //   print(messages.length);
+  //   return messages;
+  // }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -69,7 +94,6 @@ class _ChatPageState extends State<ChatPage> {
               Color.fromARGB(255, 242, 210, 137),
               Color.fromARGB(255, 235, 207, 116),
               Color.fromARGB(255, 239, 192, 36),
-              Color.fromARGB(255, 249, 191, 1),
             ],
           ),
         ),
@@ -133,7 +157,7 @@ class _MessageBarState extends State<_MessageBar> {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: Color.fromARGB(255, 242, 210, 137),
+      color: Colors.grey[200],
       child: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(8.0),
@@ -177,49 +201,8 @@ class _MessageBarState extends State<_MessageBar> {
                   ),
                 ],
               ),
-              Offstage(
-                offstage: !emojiShowing,
-                child: SizedBox(
-                  height: 250,
-                  child: EmojiPicker(
-                    textEditingController: _textController,
-                    config: Config(
-                      columns: 9,
-                      // Issue: https://github.com/flutter/flutter/issues/28894
-                      emojiSizeMax: 32 *
-                          (foundation.defaultTargetPlatform ==
-                                  TargetPlatform.iOS
-                              ? 1.30
-                              : 1.0),
-                      verticalSpacing: 0,
-                      horizontalSpacing: 0,
-                      gridPadding: EdgeInsets.zero,
-                      initCategory: Category.RECENT,
-                      bgColor: const Color.fromARGB(255, 235, 207, 116),
-                      indicatorColor: Colors.blue,
-                      iconColor: Colors.grey,
-                      iconColorSelected: Theme.of(context).primaryColor,
-                      backspaceColor: Colors.blue,
-                      skinToneDialogBgColor: Color.fromARGB(255, 235, 207, 116),
-                      skinToneIndicatorColor: Colors.grey,
-                      enableSkinTones: true,
-                      showRecentsTab: true,
-                      recentsLimit: 28,
-                      replaceEmojiOnLimitExceed: false,
-                      noRecents: const Text(
-                        'No Recents',
-                        style: TextStyle(fontSize: 20, color: Colors.black26),
-                        textAlign: TextAlign.center,
-                      ),
-                      loadingIndicator: const SizedBox.shrink(),
-                      tabIndicatorAnimDuration: kTabScrollDuration,
-                      categoryIcons: const CategoryIcons(),
-                      buttonMode: ButtonMode.MATERIAL,
-                      checkPlatformCompatibility: true,
-                    ),
-                  ),
-                ),
-              ),
+              Emoji(
+                  emojiShowing: emojiShowing, textController: _textController),
             ],
           ),
         ),
@@ -242,6 +225,12 @@ class _MessageBarState extends State<_MessageBar> {
   void _submitMessage() async {
     final text = _textController.text;
     final myUserId = supabase.auth.currentUser!.id;
+    final data = await supabase
+        .from('profiles')
+        .select('username')
+        .eq('id', myUserId)
+        .single();
+    final myUsername = data['username'];
     if (text.isEmpty) {
       return;
     }
@@ -250,13 +239,69 @@ class _MessageBarState extends State<_MessageBar> {
       await supabase.from('messages').insert({
         'profile_id': myUserId,
         'content': text,
+        'user_name': myUsername,
       });
     } on PostgrestException catch (error) {
       context.showErrorSnackBar(message: error.message);
-      print(error.message);
     } catch (_) {
       context.showErrorSnackBar(message: unexpectedErrorMessage);
     }
+  }
+}
+
+class Emoji extends StatelessWidget {
+  const Emoji({
+    super.key,
+    required this.emojiShowing,
+    required TextEditingController textController,
+  }) : _textController = textController;
+
+  final bool emojiShowing;
+  final TextEditingController _textController;
+
+  @override
+  Widget build(BuildContext context) {
+    return Offstage(
+      offstage: !emojiShowing,
+      child: SizedBox(
+        height: 250,
+        child: EmojiPicker(
+          textEditingController: _textController,
+          config: Config(
+            columns: 9,
+            emojiSizeMax: 32 *
+                (foundation.defaultTargetPlatform == TargetPlatform.iOS
+                    ? 1.30
+                    : 1.0),
+            verticalSpacing: 0,
+            horizontalSpacing: 0,
+            gridPadding: EdgeInsets.zero,
+            initCategory: Category.RECENT,
+            bgColor: const Color.fromARGB(255, 235, 207, 116),
+            indicatorColor: Colors.blue,
+            iconColor: Colors.grey,
+            iconColorSelected: Theme.of(context).primaryColor,
+            backspaceColor: Colors.blue,
+            skinToneDialogBgColor: const Color.fromARGB(255, 235, 207, 116),
+            skinToneIndicatorColor: Colors.grey,
+            enableSkinTones: true,
+            showRecentsTab: true,
+            recentsLimit: 28,
+            replaceEmojiOnLimitExceed: false,
+            noRecents: const Text(
+              'No Recents',
+              style: TextStyle(fontSize: 20, color: Colors.black26),
+              textAlign: TextAlign.center,
+            ),
+            loadingIndicator: const SizedBox.shrink(),
+            tabIndicatorAnimDuration: kTabScrollDuration,
+            categoryIcons: const CategoryIcons(),
+            buttonMode: ButtonMode.MATERIAL,
+            checkPlatformCompatibility: true,
+          ),
+        ),
+      ),
+    );
   }
 }
 

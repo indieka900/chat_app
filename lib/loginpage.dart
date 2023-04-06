@@ -28,6 +28,7 @@ class _LoginPageState extends State<LoginPage> {
       await supabase.auth.signInWithPassword(
         email: _emailController.text,
         password: _passwordController.text,
+        
       );
       Navigator.of(context)
           .pushAndRemoveUntil(ChatPage.route(), (route) => false);

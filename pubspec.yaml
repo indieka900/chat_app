@@ -7,11 +7,12 @@ environment:
   sdk: '>=2.19.3 <3.0.0'
 
 dependencies:
-  emoji_picker_flutter: ^1.5.2
   flutter:
     sdk: flutter
   supabase_flutter: ^1.6.1
+  emoji_picker_flutter: ^1.5.2
   timeago: ^3.4.0
+  shared_preferences: ^2.0.8
 
 dev_dependencies:
   flutter_test:
